@@ -1,12 +1,12 @@
 camera:
-  rtsp_url: "rtsp://admin:reolink-haw@192.168.0.33/stream"
+  rtsp_url: "rtsp://${CAMERA_USER}:${CAMERA_PASSWORD}@${CAMERA_IP}/stream"
 
 mqtt:
-  broker: "192.168.x.x"
+  broker: "${MQTT_BROKER_IP}"
   port: 1883
   topic_prefix: "homeai"
-  username: ""
-  password: ""
+  username: "${MQTT_USER}"
+  password: "${MQTT_PASSWORD}"
 
 model:
   path: "models/yolov8n.pt"
