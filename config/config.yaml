@@ -1,0 +1,18 @@
+camera:
+  rtsp_url: "rtsp://admin:reolink-haw@192.168.0.33/stream"
+
+mqtt:
+  broker: "192.168.x.x"
+  port: 1883
+  topic_prefix: "homeai"
+  username: ""
+  password: ""
+
+model:
+  path: "models/yolov8n.pt"
+  confidence_threshold: 0.5
+  device: "mps"
+
+stream:
+  reconnect_delay: 5
+  max_reconnect_attempts: 10

@@ -1,0 +1,8 @@
+.env
+.homeguardvenv/
+models/*.pt
+models/*.onnx
+__pycache__/
+*.pyc
+.DS_Store
+.idea
