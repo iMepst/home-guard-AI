@@ -4,7 +4,7 @@ import logging
 from config_loader import load_config
 
 # logger init for better debugging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M')
 logger = logging.getLogger(__name__)
 
 # connecting to stream and error handling
