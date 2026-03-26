@@ -1,5 +1,5 @@
 camera:
-  rtsp_url: "rtsp://${CAMERA_USER}:${CAMERA_PASSWORD}@${CAMERA_IP}/stream"
+  rtsp_url: "rtsp://${CAMERA_USER}:${CAMERA_PASSWORD}@${CAMERA_IP}/h264Preview_01_sub"
 
 mqtt:
   broker: "${MQTT_BROKER_IP}"
