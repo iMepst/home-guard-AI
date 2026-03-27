@@ -23,6 +23,8 @@ class MQTTPublisher:
         self.port = port
         self.topic_prefix = topic_prefix
         self.client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
+        self._last_published: dict = {}
+        self.throttle_seconds = 3  # Nur alle 3 Sekunden pro Klasse publizieren
 
         if username:
             self.client.username_pw_set(username, password)
@@ -39,8 +41,15 @@ class MQTTPublisher:
         self.client.disconnect()
 
     def publish(self, class_name: str, payload: dict):
-        topic = f"{self.topic_prefix}7detected/{class_name}"
-        payload["timestamp"] = time.strftime("%Y-%m-%d %H:%M")
+        now = time.time()
+        last = self._last_published.get(class_name, 0)
+
+        if now - last < self.throttle_seconds:
+            return
+
+        self._last_published[class_name] = now
+        topic = f"{self.topic_prefix}/detected/{class_name}"
+        payload["timestamp"] = time.strftime("%Y-%m-%dT%H:%M:%S")
         self.client.publish(topic, json.dumps(payload))
         logger.debug(f"Published {topic}: {payload}")
 
