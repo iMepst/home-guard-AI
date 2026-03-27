@@ -55,7 +55,7 @@ if "__main__" == __name__:
             reconnect_delay=config["stream"]["reconnect_delay"],
             max_attempts=config["stream"]["max_reconnect_attempts"]
     ) as stream:
-        logger.info("Detector läuft – ESC zum Beenden")
+        logger.info("Detector ist running... press ESC to stop")
         while True:
             ret, frame = stream.read_frame()
             if not ret:
