@@ -1,7 +1,7 @@
 import cv2
 import time
 import logging
-from config_loader import load_config
+from src.config_loader import load_config
 
 # logger init for better debugging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M')
