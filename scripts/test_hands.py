@@ -11,9 +11,8 @@ from src.stream_receiver import StreamReceiver
 
 config = load_config()
 
-# HandLandmarker config
-base_options = mp_python.BaseOptions(model_asset_path="models/hand_landmarker.task")
-options = mp_vision.HandLandmarkerOptions(
+base_options = mp_python.BaseOptions(model_asset_path="models/gesture_recognizer.task")
+options = mp_vision.GestureRecognizerOptions(
     base_options=base_options,
     num_hands=1,
     min_hand_detection_confidence=0.7,
@@ -22,14 +21,14 @@ options = mp_vision.HandLandmarkerOptions(
     running_mode=mp_vision.RunningMode.VIDEO
 )
 
-with mp_vision.HandLandmarker.create_from_options(options) as landmarker, \
+with mp_vision.GestureRecognizer.create_from_options(options) as recognizer, \
      StreamReceiver(
          rtsp_url=config["camera"]["rtsp_url"],
          reconnect_delay=config["stream"]["reconnect_delay"],
          max_attempts=config["stream"]["max_reconnect_attempts"]
      ) as stream:
 
-    print("Stream läuft – zeig deine Hand. ESC zum Beenden.")
+    print("Stream is running... press ESC to quit.")
     timestamp_ms = 0
 
     while True:
@@ -37,25 +36,27 @@ with mp_vision.HandLandmarker.create_from_options(options) as landmarker, \
         if not ret:
             break
 
-        timestamp_ms += 33  # ~30fps simulation
+        timestamp_ms += 33
 
         rgb     = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         mp_img  = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
-        results = landmarker.detect_for_video(mp_img, timestamp_ms)
+        results = recognizer.recognize_for_video(mp_img, timestamp_ms)
+
+        if results.gestures:
+            gesture    = results.gestures[0][0]
+            name       = gesture.category_name
+            confidence = round(gesture.score, 2)
+            print(f"Gesture: {name:<20} Confidence: {confidence}", end="\r")
+            cv2.putText(frame, f"{name} ({confidence})", (10, 30),
+                        cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
 
         if results.hand_landmarks:
-            for hand in results.hand_landmarks:
-                # Keypoints auf Frame zeichnen
-                h, w, _ = frame.shape
-                for lm in hand:
-                    cx, cy = int(lm.x * w), int(lm.y * h)
-                    cv2.circle(frame, (cx, cy), 4, (0, 255, 0), -1)
+            h, w, _ = frame.shape
+            for lm in results.hand_landmarks[0]:
+                cx, cy = int(lm.x * w), int(lm.y * h)
+                cv2.circle(frame, (cx, cy), 4, (0, 255, 0), -1)
 
-                # Wrist Keypoint ausgeben
-                wrist = hand[0]
-                print(f"Wrist: x={wrist.x:.2f} y={wrist.y:.2f}", end="\r")
-
-        cv2.imshow("MediaPipe Hands Test", frame)
+        cv2.imshow("Gesture Recognizer Test", frame)
         if cv2.waitKey(1) & 0xFF == 27:
             break
 
