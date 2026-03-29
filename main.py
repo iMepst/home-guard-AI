@@ -5,6 +5,7 @@ from src.config_loader import load_config
 from src.stream_receiver import StreamReceiver
 from src.detector import Detector
 from src.mqtt_publisher import MQTTPublisher
+from src.gesture_classifier import GestureClassifier
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
@@ -21,6 +22,11 @@ def main():
         confidence=model_cfg["confidence_threshold"],
         classes=model_cfg["classes"],
         device=model_cfg["device"]
+    )
+
+    gesture_classifier = GestureClassifier(
+        model_path="models/gesture_recognizer.task",
+        min_confidence=0.7
     )
 
     fps_counter = 0
@@ -63,6 +69,13 @@ def main():
                 cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
                 cv2.putText(frame, label, (x1, y1 - 10),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+
+            gesture = gesture_classifier.recognize(frame)
+            print(f"DEBUG gesture: {gesture}", end="\r")
+            if gesture:
+                publisher.publish("gesture", gesture)
+                cv2.putText(frame, f"Geste: {gesture['gesture']} ({gesture['confidence']})",
+                            (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 255), 2)
 
             # calculate FPS
             fps_counter += 1
