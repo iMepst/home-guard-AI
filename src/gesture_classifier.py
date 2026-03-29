@@ -1,7 +1,7 @@
 import mediapipe as mp
 from mediapipe.tasks import python as mp_python
 from mediapipe.tasks.python import vision as mp_vision
-import logging
+import logging, time
 
 logger = logging.getLogger(__name__)
 
@@ -15,6 +15,7 @@ GESTURE_MAP = {
 
 class GestureClassifier:
     def __init__(self, model_path: str, min_confidence: float = 0.7):
+        self.start_time = time.time()
         self.min_confidence = min_confidence
         base_options = mp_python.BaseOptions(model_asset_path=model_path)
         options = mp_vision.GestureRecognizerOptions(
@@ -30,11 +31,12 @@ class GestureClassifier:
         logger.info(f"Gesture Classifier initialized successfully")
 
     def recognize(self, frame):
-        self.timestamp_ms += 33
+        self.timestamp_ms = int((time.time() - self.start_time) * 1000)
 
         rgb    = __import__("cv2").cvtColor(frame, __import__("cv2").COLOR_BGR2RGB)
         mp_img = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
         results = self.recognizer.recognize_for_video(mp_img, self.timestamp_ms)
+        print(f"gestures={len(results.gestures)} hands={len(results.hand_landmarks)}", end="\r")
 
         if not results.gestures:
             return None
