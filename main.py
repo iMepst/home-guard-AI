@@ -1,6 +1,4 @@
-import cv2
-import time
-import logging
+import cv2, time, logging
 from src.config_loader import load_config
 from src.stream_receiver import StreamReceiver
 from src.detector import Detector
@@ -24,11 +22,6 @@ def main():
         device=model_cfg["device"]
     )
 
-    gesture_classifier = GestureClassifier(
-        model_path="models/gesture_recognizer.task",
-        min_confidence=0.7
-    )
-
     fps_counter = 0
     fps_display = 0
     fps_timer   = time.time()
@@ -44,14 +37,17 @@ def main():
         topic_prefix=mqtt_cfg["topic_prefix"],
         username=mqtt_cfg["username"],
         password=mqtt_cfg["password"]
-    ) as publisher:
+    ) as publisher, GestureClassifier(
+        model_path="models/gesture_recognizer.task",
+        min_confidence=0.7
+    ) as gesture_classifier:
 
-        logger.info("Pipeline läuft – ESC zum Beenden")
+        logger.info("Pipeline is running... press ESC to quit")
 
         while True:
             ret, frame = stream.read_frame()
             if not ret:
-                logger.warning("Frame konnte nicht gelesen werden.")
+                logger.warning("Frame could not be read.")
                 break
 
             detections = detector.detect(frame)
@@ -71,7 +67,6 @@ def main():
                             cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
 
             gesture = gesture_classifier.recognize(frame)
-            print(f"DEBUG gesture: {gesture}", end="\r")
             if gesture:
                 publisher.publish("gesture", gesture)
                 cv2.putText(frame, f"Geste: {gesture['gesture']} ({gesture['confidence']})",
@@ -98,7 +93,7 @@ def main():
 
     cv2.destroyAllWindows()
     publisher.publish_status(fps=0, running=False)
-    logger.info("Pipeline beendet.")
+    logger.info("Pipeline terminated.")
 
 if __name__ == "__main__":
     main()
