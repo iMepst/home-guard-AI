@@ -49,7 +49,7 @@ class MQTTPublisher:
         self.client.loop_stop()
         self.client.disconnect()
 
-    def publish(self, class_name: str, payload: dict):
+    def publish(self, class_name: str, payload: dict, dedup_key: str = None):
         if not self.connected:
             return
 
@@ -61,9 +61,10 @@ class MQTTPublisher:
             return
 
         # deduplicate payload
-        last_payload = self._last_payload.get(class_name)
-        if last_payload == payload:
+        check = dedup_key if dedup_key is not None else str(payload)
+        if self._last_payload.get(class_name) == check:
             return
+        self._last_payload[class_name] = check
 
         self._last_published[class_name] = now
         self._last_payload[class_name] = payload.copy()
