@@ -16,7 +16,7 @@ GESTURE_MAP = {
 
 class GestureClassifier:
     def __init__(self, model_path: str, min_confidence: float = 0.7):
-        self.start_time = time.perf_counter()
+        self._start_time = time.monotonic()
         self.min_confidence = min_confidence
         base_options = mp_python.BaseOptions(model_asset_path=model_path)
         options = mp_vision.GestureRecognizerOptions(
@@ -32,7 +32,7 @@ class GestureClassifier:
         logger.info(f"Gesture Classifier initialized successfully")
 
     def recognize(self, frame):
-        self.timestamp_ms = int((time.perf_counter() - self.start_time) * 1000)
+        self.timestamp_ms = int((time.monotonic() - self._start_time) * 1000)
 
         rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         mp_img = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
@@ -41,9 +41,9 @@ class GestureClassifier:
         if not results.gestures:
             return None
 
-        gesture    = results.gestures[0][0]
+        gesture = results.gestures[0][0]
         confidence = round(gesture.score, 2)
-        name       = GESTURE_MAP.get(gesture.category_name)
+        name = GESTURE_MAP.get(gesture.category_name)
 
         if name is None or confidence < self.min_confidence:
             return None
