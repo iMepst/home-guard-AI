@@ -17,3 +17,8 @@ model:
 stream:
   reconnect_delay: 5
   max_reconnect_attempts: 10
+
+gesture:
+  model_path: "models/gesture_recognizer.task"
+  min_confidence: 0.7
+  throttle_seconds: 2
