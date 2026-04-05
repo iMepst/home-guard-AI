@@ -1,5 +1,4 @@
-import torch
-import logging
+import torch, logging, cv2
 from ultralytics import YOLO
 
 logger = logging.getLogger(__name__)
@@ -33,7 +32,6 @@ if "__main__" == __name__:
 
     sys.path.insert(0, str(Path(__file__).parent.parent))
 
-    import cv2
     import time
     from config_loader import load_config
     from stream_receiver import StreamReceiver
