@@ -1,102 +1,96 @@
 # HomeGuard AI
 
-> Intelligentes Raumverständnis-System auf Basis von YOLOv8, RTSP-Streaming und Home Assistant – vollständig lokal, ohne Cloud.
+> A local, real-time computer vision pipeline that understands scenes and controls smart home devices — no cloud required.
 
 ---
 
-## Projektübersicht
+## Overview
 
-HomeGuard AI verbindet eine IP-Kamera mit einer lokalen KI-Pipeline. Das System erkennt nicht nur *was* im Bild ist, sondern versteht den *Kontext* einer Szene und löst darauf basierend smarte Home-Assistant-Automatisierungen aus.
+HomeGuard AI connects an IP camera to a local AI pipeline built on YOLOv8 and MediaPipe. The system detects objects, recognizes hand gestures, and publishes structured events via MQTT to Home Assistant — enabling gesture-controlled smart home automation.
 
-**Kernfunktionen (geplant):**
-- Echtzeit-Personen- und Objekterkennung via YOLOv8
-- Gestensteuerung für Smart-Home-Geräte
-- Aktivitätserkennung (sitzen, gehen, schlafen)
-- Anomalie-Erkennung mit MQTT-Alerts
-- Vollständig lokal – keine Cloud-Abhängigkeit
+**Current capabilities:**
+- Real-time object detection via YOLOv8 (MPS-accelerated on Apple Silicon)
+- Hand gesture recognition via MediaPipe Gesture Recognizer
+- Structured MQTT event publishing with throttling & deduplication
+- Home Assistant automation triggers via gesture input
+- Fully local — no cloud dependency
 
 ---
 
 ## Hardware
 
-| Komponente | Rolle |
+| Component | Role |
 |---|---|
-| Reolink P850 PoE | Videoquelle (RTSP-Stream) |
-| MacBook M1 Pro 32 GB | AI-Pipeline (Phase 1 & 2) |
+| Reolink P850 PoE | Video source (RTSP stream) |
+| MacBook M1 Pro | AI pipeline (Phase 1 & 2) |
 | Raspberry Pi 5 8 GB | Home Assistant OS / MQTT Broker |
-| Jetson Nano *(geplant)* | Edge AI Worker (Phase 3+) |
-| PoE-Switch / Injector | Stromversorgung der Kamera |
+| Jetson Nano *(planned)* | Edge AI worker (Phase 3+) |
+| PoE Switch / Injector | Camera power supply |
 
-> Alle Geräte müssen sich im selben lokalen Netzwerk befinden.
+> All devices must be on the same local network.
 
 ---
 
-## Systemarchitektur
+## Architecture
 
 ```
 Reolink P850 (RTSP)
         │
         ▼
 MacBook M1 Pro
-  ├── OpenCV Stream Receiver
-  ├── YOLOv8 Inferenz (MPS)
-  ├── Gesture Classifier
-  ├── Scene Interpreter
-  └── MQTT Publisher
+  ├── StreamReceiver     (OpenCV RTSP + reconnect logic)
+  ├── Detector           (YOLOv8n, MPS-accelerated)
+  ├── GestureClassifier  (MediaPipe Gesture Recognizer)
+  ├── Pipeline           (frame loop orchestration)
+  └── MQTTPublisher      (throttled, deduplicated events)
         │
         ▼
-Raspberry Pi 5 (HAOS)
+Raspberry Pi 5 (Home Assistant OS)
   ├── Mosquitto Broker
-  ├── Home Assistant Automations
-  └── Node-RED Flows
+  └── HA Automations
         │
         ▼
-Smarte Geräte (Licht, Audio, etc.)
+Smart Devices (lights, audio, etc.)
 ```
 
-In Phase 3 ersetzt der **Jetson Nano** das MacBook als AI-Worker.
+In Phase 3, the **Jetson Nano** replaces the MacBook as the AI worker.
 
 ---
 
-## Projektphasen
+## Roadmap
 
-### Phase 1 – Fundament *(aktuell)*
-Stabiler RTSP-Stream → YOLOv8-Inferenz → MQTT-Events an Home Assistant.
-
-### Phase 2 – Gesten & Kontext
-Eigenes Gesten-Dataset aufnehmen, trainieren und als zweite Erkennungsstufe integrieren. Scene Interpreter für zeitbasierte Aktivitätserkennung.
-
-### Phase 3 – Edge Deployment
-Migration der AI-Pipeline auf den Jetson Nano. Modell-Optimierung via ONNX / TensorRT. Ziel: <200 ms Latenz.
-
-### Phase 4 – Monitoring & Logging
-InfluxDB + Grafana für Aktivitäts-Logs und Performance-Dashboards.
+| Phase | Status | Description |
+|---|---|---|
+| 1 – Foundation | Done | RTSP stream → YOLOv8 → MQTT → Home Assistant |
+| 2 – Gestures | Done | MediaPipe hand gesture recognition → HA automations |
+| 3 – Edge Deployment | 🔜 Planned | Migration to Jetson Nano, ONNX / TensorRT optimization |
+| 4 – Monitoring | 🔜 Planned | InfluxDB + Grafana activity logging & dashboards |
 
 ---
 
-## Projektstruktur
+## Project Structure
 
 ```
 homeGuardAI/
 │
 ├── config/
-│   └── config.yaml              # Zentrale Konfiguration (RTSP, MQTT, Modell)
+│   └── config.yaml              # Central configuration
 │
 ├── src/
 │   ├── __init__.py
-│   ├── stream_receiver.py       # RTSP-Verbindung & Frame-Loop
-│   ├── detector.py              # YOLOv8 Inferenz & MPS-Setup
-│   ├── scene_interpreter.py     # Kontext-Logik (Phase 2+)
-│   ├── gesture_classifier.py    # Gesten-Erkennung (Phase 2+)
-│   └── mqtt_publisher.py        # MQTT-Client & Payload-Builder
+│   ├── config_loader.py         # YAML + .env variable resolution
+│   ├── stream_receiver.py       # RTSP connection & reconnect logic
+│   ├── detector.py              # YOLOv8 inference
+│   ├── gesture_classifier.py    # MediaPipe gesture recognition
+│   ├── mqtt_publisher.py        # MQTT client with throttling & dedup
+│   └── pipeline.py              # Frame loop orchestration
 │
-├── models/
-│   └── yolov8n.pt               # Modell-Dateien (gitignored)
+├── models/                      # Model files (gitignored)
 │
 ├── data/
-│   ├── raw/                     # Rohe Trainingsbilder
-│   ├── labeled/                 # Gelabelte Daten
-│   └── exports/                 # ONNX / TensorRT Exports
+│   ├── raw/                     # Raw training images
+│   ├── labeled/                 # Labeled datasets
+│   └── exports/                 # ONNX / TensorRT exports
 │
 ├── tests/
 │   ├── test_stream.py
@@ -104,13 +98,15 @@ homeGuardAI/
 │   └── test_mqtt.py
 │
 ├── scripts/
-│   ├── check_environment.py     # Setup-Verifikation
-│   └── benchmark_fps.py         # FPS-Benchmark Tool
+│   ├── check_environment.py     # Setup verification
+│   ├── test_hands.py            # MediaPipe hands debug script
+│   └── benchmark_fps.py         # FPS benchmark tool
 │
 ├── notebooks/
 │   └── explore_detections.ipynb
 │
-├── main.py                      # Pipeline-Einstiegspunkt
+├── conftest.py
+├── main.py
 ├── requirements.txt
 ├── .env.example
 ├── .gitignore
@@ -121,57 +117,62 @@ homeGuardAI/
 
 ## Setup
 
-### Voraussetzungen
+### Prerequisites
 
-- Python 3.11
-- Mosquitto Add-on in Home Assistant OS aktiv
-- RTSP-Stream der Reolink bekannt und erreichbar
+- Python 3.11 (via pyenv recommended)
+- Mosquitto Add-on active in Home Assistant OS
+- RTSP stream URL of your camera
 
 ### Installation
 
 ```bash
-# Repository klonen
-git clone https://github.com/dein-user/homeGuardAI.git
+git clone https://github.com/your-user/homeGuardAI.git
 cd homeGuardAI
 
-# Virtuelle Umgebung erstellen
-python3.11 -m venv .venv
+python -m venv .venv
 source .venv/bin/activate
 
-# Abhängigkeiten installieren
 pip install -r requirements.txt
 ```
 
-### Konfiguration
+### Configuration
 
 ```bash
-# Konfigurationsdatei anpassen
-cp config/config.yaml.example config/config.yaml
+cp .env.example .env
 ```
 
+Fill in your credentials in `.env`:
+
+```
+CAMERA_USER=your_user
+CAMERA_PASSWORD=your_password
+CAMERA_IP=192.168.x.x
+MQTT_BROKER_IP=192.168.x.x
+MQTT_USER=your_mqtt_user
+MQTT_PASSWORD=your_mqtt_password
+```
+
+Edit `config/config.yaml` for model and pipeline settings:
+
 ```yaml
-# config/config.yaml
-camera:
-  rtsp_url: "rtsp://user:password@192.168.1.x/stream"
-
-mqtt:
-  broker: "192.168.1.x"   # IP des Raspberry Pi
-  port: 1883
-  topic_prefix: "homeai"
-
 model:
   path: "models/yolov8n.pt"
   confidence_threshold: 0.5
-  device: "mps"            # mps (M1), cuda (Jetson), cpu
+  device: "mps"        # mps (Apple Silicon), cuda (Jetson), cpu
+
+gesture:
+  model_path: "models/gesture_recognizer.task"
+  min_confidence: 0.7
+  throttle_seconds: 2
 ```
 
-### Umgebung prüfen
+### Verify Setup
 
 ```bash
 python scripts/check_environment.py
 ```
 
-### Starten
+### Run
 
 ```bash
 python main.py
@@ -179,19 +180,36 @@ python main.py
 
 ---
 
-## MQTT Topics
+## Supported Gestures
 
-| Topic | Beschreibung | Payload Beispiel |
-|---|---|---|
-| `homeai/detected/person` | Person erkannt | `{"confidence": 0.92, "bbox": [x,y,w,h], "timestamp": "..."}` |
-| `homeai/detected/object` | Objekt erkannt | `{"class": "chair", "confidence": 0.85, ...}` |
-| `homeai/gesture` | Geste erkannt | `{"gesture": "wave", "confidence": 0.78, ...}` |
-| `homeai/activity` | Aktivitätsstatus | `{"activity": "working", "duration_sec": 300}` |
-| `homeai/status` | Pipeline-Status | `{"fps": 18.3, "running": true}` |
+| Gesture | Action |
+|---|---|
+| Open Palm | Light on |
+| Closed Fist | Light off |
+| Thumb Up | Music play |
+| Thumb Down | Music pause |
 
 ---
 
-## Abhängigkeiten
+## MQTT Topics
+
+| Topic | Description | Payload |
+|---|---|---|
+| `homeai/detected/{class}` | Object detected | `{"confidence": 0.92, "bbox": [...], "timestamp": "..."}` |
+| `homeai/detected/gesture` | Gesture detected | `{"gesture": "thumb_up", "confidence": 0.88, "timestamp": "..."}` |
+| `homeai/status` | Pipeline heartbeat | `{"fps": 14.2, "running": true, "timestamp": "..."}` |
+
+---
+
+## Running Tests
+
+```bash
+pytest tests/ -v
+```
+
+---
+
+## Dependencies
 
 ```
 ultralytics>=8.0
@@ -199,20 +217,13 @@ opencv-python>=4.8
 paho-mqtt>=2.0
 pyyaml>=6.0
 numpy>=1.24
+mediapipe>=0.10
+python-dotenv>=1.0
+pytest>=7.0
 ```
 
 ---
 
-## Lernziele dieses Projekts
+## License
 
-- Edge AI auf ARM / CUDA-Hardware deployen
-- Echtzeit-Pipelines mit OpenCV optimieren
-- Multimodale Systeme (Video + MQTT) aufbauen
-- Eigene Datasets aufnehmen, labeln und trainieren
-- Home Assistant via MQTT programmatisch steuern
-
----
-
-## Lizenz
-
-MIT License – siehe `LICENSE`
+MIT License — see `LICENSE`
