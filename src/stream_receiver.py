@@ -36,8 +36,25 @@ class StreamReceiver:
 
     def read_frame(self):
         if self.cap is None or not self.cap.isOpened():
-            return False, None
-        return self.cap.read()
+            logger.warning("Stream unterbrochen – versuche Reconnect...")
+            try:
+                self.connect_with_retry()
+            except ConnectionError:
+                return False, None
+
+        ret, frame = self.cap.read()
+
+        if not ret:
+            logger.warning("Frame konnte nicht gelesen werden – versuche Reconnect...")
+            self.release()
+            try:
+                self.connect_with_retry()
+                reconnect_ret, reconnect_frame = self.cap.read()
+                return reconnect_ret, reconnect_frame
+            except ConnectionError:
+                return False, None
+
+        return ret, frame
 
     def release(self):
         if self.cap:
