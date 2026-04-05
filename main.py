@@ -1,9 +1,10 @@
-import cv2, time, logging
+import cv2, logging
 from src.config_loader import load_config
 from src.stream_receiver import StreamReceiver
 from src.detector import Detector
 from src.mqtt_publisher import MQTTPublisher
 from src.gesture_classifier import GestureClassifier
+from src.pipeline import Pipeline
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
@@ -14,6 +15,7 @@ def main():
     mqtt_cfg  = config["mqtt"]
     model_cfg = config["model"]
     stream_cfg = config["stream"]
+    gesture_cfg = config["gesture"]
 
     detector = Detector(
         model_path=model_cfg["path"],
@@ -21,12 +23,6 @@ def main():
         classes=model_cfg["classes"],
         device=model_cfg["device"]
     )
-
-    fps_counter = 0
-    fps_display = 0
-    fps_timer   = time.time()
-    status_timer = time.time()
-
     with StreamReceiver(
         rtsp_url=cam_cfg["rtsp_url"],
         reconnect_delay=stream_cfg["reconnect_delay"],
@@ -38,62 +34,11 @@ def main():
         username=mqtt_cfg["username"],
         password=mqtt_cfg["password"]
     ) as publisher, GestureClassifier(
-        model_path="models/gesture_recognizer.task",
-        min_confidence=0.7
+        model_path=gesture_cfg["model_path"],
+        min_confidence=gesture_cfg["min_confidence"]
     ) as gesture_classifier:
 
-        logger.info("Pipeline is running... press ESC to quit")
-
-        while True:
-            ret, frame = stream.read_frame()
-            if not ret:
-                logger.warning("Frame could not be read.")
-                break
-
-            detections = detector.detect(frame)
-
-            for d in detections:
-                # publish MQTT
-                publisher.publish(d["class_name"], {
-                    "confidence": d["confidence"],
-                    "bbox":       d["bbox"]
-                })
-
-                # create Bounding Box
-                x1, y1, x2, y2 = [int(v) for v in d["bbox"]]
-                label = f"{d['class_name']} {d['confidence']}"
-                cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
-                cv2.putText(frame, label, (x1, y1 - 10),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
-
-            gesture = gesture_classifier.recognize(frame)
-            if gesture:
-                publisher.publish("gesture", gesture)
-                cv2.putText(frame, f"Geste: {gesture['gesture']} ({gesture['confidence']})",
-                            (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 255), 2)
-
-            # calculate FPS
-            fps_counter += 1
-            if time.time() - fps_timer >= 1.0:
-                fps_display = fps_counter
-                fps_counter = 0
-                fps_timer   = time.time()
-
-            # publish status every 10s
-            if time.time() - status_timer >= 10.0:
-                publisher.publish_status(fps=fps_display, running=True)
-                status_timer = time.time()
-
-            cv2.putText(frame, f"FPS: {fps_display}", (10, 30),
-                        cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-            cv2.imshow("HomeGuard AI", frame)
-
-            if cv2.waitKey(1) & 0xFF == 27:
-                break
-
-    cv2.destroyAllWindows()
-    publisher.publish_status(fps=0, running=False)
-    logger.info("Pipeline terminated.")
+        Pipeline(stream, detector, gesture_classifier, publisher).run()
 
 if __name__ == "__main__":
     main()
