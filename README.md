@@ -1,19 +1,19 @@
 # HomeGuard AI
 
-> A local, real-time computer vision pipeline that understands scenes and controls smart home devices — no cloud required.
+> A local, real-time computer vision pipeline that understands scenes and controls smart home devices. No cloud required.
 
 ---
 
 ## Overview
 
-HomeGuard AI connects an IP camera to a local AI pipeline built on YOLOv8 and MediaPipe. The system detects objects, recognizes hand gestures, and publishes structured events via MQTT to Home Assistant — enabling gesture-controlled smart home automation.
+HomeGuard AI connects an IP camera to a local AI pipeline built on YOLOv8 and MediaPipe. The system detects objects, recognizes hand gestures, and publishes structured events via MQTT to Home Assistant. Enabling gesture-controlled smart home automation.
 
 **Current capabilities:**
 - Real-time object detection via YOLOv8 (MPS-accelerated on Apple Silicon)
 - Hand gesture recognition via MediaPipe Gesture Recognizer
 - Structured MQTT event publishing with throttling & deduplication
 - Home Assistant automation triggers via gesture input
-- Fully local — no cloud dependency
+- Fully local, no cloud dependency
 
 ---
 
