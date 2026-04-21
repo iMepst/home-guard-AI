@@ -16,7 +16,7 @@ model:
 
 stream:
   reconnect_delay: 5
-  max_reconnect_attempts: 10
+  max_reconnect_attempts: 2
 
 gesture:
   model_path: "models/gesture_recognizer.task"

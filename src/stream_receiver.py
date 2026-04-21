@@ -1,7 +1,6 @@
 import cv2
 import time
 import logging
-from src.config_loader import load_config
 
 # logger init for better debugging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M')
@@ -14,14 +13,26 @@ class StreamReceiver:
         self.reconnect_delay = reconnect_delay
         self.max_attempts = max_attempts
         self.cap = None
+        self.using_fallback = False
 
     def connect(self) -> bool:
-        logger.info("Connecting to Stream...")
+        logger.info("Connecting to RTSP stream...")
         self.cap = cv2.VideoCapture(self.rtsp_url)
         if self.cap.isOpened():
-            logger.info("Stream connected.")
+            logger.info("RTSP stream connected.")
+            self.using_fallback = False
             return True
-        logger.warning("Connection with Stream failed.")
+        logger.warning("RTSP connection failed.")
+        return False
+
+    def _connect_fallback(self) -> bool:
+        logger.warning("Trying fallback: internal camera (index 0)...")
+        self.cap = cv2.VideoCapture(0)
+        if self.cap.isOpened():
+            logger.info("Fallback camera connected.")
+            self.using_fallback = True
+            return True
+        logger.error("Fallback camera also failed.")
         return False
 
     def connect_with_retry(self):
@@ -32,11 +43,16 @@ class StreamReceiver:
             attempts += 1
             logger.warning(f"Try {attempts}/{self.max_attempts} - waiting {self.reconnect_delay}s...")
             time.sleep(self.reconnect_delay)
-        raise ConnectionError(f"Stream is not established after {self.max_attempts} tries")
+
+        logger.warning("RTSP stream not reachable... switching to fallback camera.")
+        if self._connect_fallback():
+            return
+
+        raise ConnectionError("RTSP stream and fallback camera both unavailable.")
 
     def read_frame(self):
         if self.cap is None or not self.cap.isOpened():
-            logger.warning("Stream unterbrochen – versuche Reconnect...")
+            logger.warning("Stream lost... attempting reconnect!")
             try:
                 self.connect_with_retry()
             except ConnectionError:
@@ -45,7 +61,7 @@ class StreamReceiver:
         ret, frame = self.cap.read()
 
         if not ret:
-            logger.warning("Frame konnte nicht gelesen werden – versuche Reconnect...")
+            logger.warning("Frame read failed... attempting reconnect!")
             self.release()
             try:
                 self.connect_with_retry()
@@ -53,6 +69,10 @@ class StreamReceiver:
                 return reconnect_ret, reconnect_frame
             except ConnectionError:
                 return False, None
+
+        if self.using_fallback:
+            cv2.putText(frame, "FALLBACK: Internal Camera", (10, 60),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
 
         return ret, frame
 
@@ -67,39 +87,3 @@ class StreamReceiver:
 
     def __exit__(self, *args):
         self.release()
-
-if __name__ == "__main__":
-    config = load_config()
-
-    fps_counter = 0
-    fps_display = 0
-    fps_timer = 0
-
-    with StreamReceiver(
-        rtsp_url=config["camera"]["rtsp_url"],
-        reconnect_delay=config["stream"]["reconnect_delay"],
-        max_attempts=config["stream"]["max_reconnect_attempts"]
-    ) as stream:
-        logger.info("Stream is running... Press ESC to exit.")
-        while True:
-            ret, frame = stream.read_frame()
-            if not ret:
-                logger.warning("Frame could not be read.")
-                break
-
-            # fps counter displayed in stream frame
-            fps_counter += 1
-            if time.time() - fps_timer >= 1.0:
-                fps_display = fps_counter
-                fps_counter = 0
-                fps_timer = time.time()
-
-            cv2.putText(frame, f"FPS: {fps_display}", (10,30),
-                        cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-            cv2.imshow("HomeGuard AI Stream", frame)
-
-            if cv2.waitKey(1) & 0xFF == 27:
-                break
-    cv2.destroyAllWindows()
-
-
